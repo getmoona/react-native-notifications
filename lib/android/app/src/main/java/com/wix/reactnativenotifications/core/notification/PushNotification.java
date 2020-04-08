@@ -1,5 +1,6 @@
 package com.wix.reactnativenotifications.core.notification;
 
+import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -184,8 +185,33 @@ public class PushNotification implements IPushNotification {
 
     protected int postNotification(Notification notification, Integer notificationId) {
         int id = notificationId != null ? notificationId : createNotificationId(notification);
-        postNotification(id, notification);
+        long fireDate = (long) notification["fireDate"];
+        Log.e(LOG_TAG, "YOOOOOOOOOOOOOOOOO")
+        if (fireDate == 0) {
+            Log.e(LOG_TAG, "No date specified for the scheduled notification");
+            postNotification(id, notification);
+            return id;
+        }
+        // If the fireDate is in past, this will fire immediately and show the
+        // notification to the user
+        PendingIntent pendingIntent = toScheduleNotificationIntent(bundle);
+
+        Log.e(LOG_TAG, String.format("Setting a notification with id %s at time %s",
+                id, Long.toString(fireDate)));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            getAlarmManager().setExact(AlarmManager.RTC_WAKEUP, fireDate, pendingIntent);
+        } else {
+            getAlarmManager().set(AlarmManager.RTC_WAKEUP, fireDate, pendingIntent);
+        }
         return id;
+    }
+
+    private PendingIntent toScheduleNotificationIntent(Integer notificationId) {
+
+        Intent notificationIntent = new Intent(context, RNPushNotificationPublisher.class);
+        notificationIntent.putExtra(RNPushNotificationPublisher.NOTIFICATION_ID, notificationID);
+
+        return PendingIntent.getBroadcast(context, notificationID, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
     protected void postNotification(int id, Notification notification) {
